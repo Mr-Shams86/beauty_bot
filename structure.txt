@@ -1,0 +1,28 @@
+.
+├── alembic
+│   ├── env.py
+│   └── versions
+│       └── 0001_create_appointments.py
+├── alembic.ini
+├── bot.py
+├── config.py
+├── database.py
+├── docker-compose.yml
+├── Dockerfile
+├── entrypoint.sh
+├── handlers
+│   ├── admin.py
+│   └── client.py
+├── keyboards.py
+├── README.md
+├── requirements.txt
+├── secrets
+│   └── gcal-service-account.json
+├── services
+│   ├── appointments.py
+│   └── calendar.py
+├── structure.txt
+└── utils
+    └── helpers.py
+
+6 directories, 19 files

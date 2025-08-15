@@ -1,0 +1,24 @@
+# venv / IDE
+venv/
+.env
+*.env
+__pycache__/
+*.py[cod]
+*.pyo
+.idea/
+.vscode/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+
+# локальные данные/логи
+appointments.db
+*.log
+
+# секреты
+secrets/
+# если хочешь игнорить только json в secrets:
+# secrets/*.json
+
+# docker/compose
+docker-data/

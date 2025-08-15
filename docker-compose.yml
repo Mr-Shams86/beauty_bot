@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-beautybot}
+      POSTGRES_USER: ${POSTGRES_USER:-beautybot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supersecret}
+      TZ: ${TZ:-Asia/Tashkent}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-beautybot} -d ${POSTGRES_DB:-beautybot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  bot:
+    build: .
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # если используем секрет-файл через compose secrets:
+      GCAL_CREDENTIALS_FILE: /run/secrets/gcal_credentials
+    secrets:
+      - gcal_credentials
+    volumes:
+      - .:/app
+
+secrets:
+  gcal_credentials:
+    file: ./secrets/gcal-service-account.json
+
+volumes:
+  pgdata:
