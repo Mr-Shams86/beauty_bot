@@ -1,7 +1,7 @@
 from __future__ import annotations
+import asyncio
 
 from scheduler.reminders import setup_scheduler
-
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand
@@ -51,9 +51,10 @@ async def create_storage():
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-    setup_scheduler(bot)
     storage = await create_storage()
     dp = Dispatcher(storage=storage)
+
+    setup_scheduler(bot)
 
     dp.message.middleware.register(ThrottlingMiddleware(rate=0.5))
     dp.callback_query.middleware.register(ThrottlingMiddleware(rate=0.5))
@@ -71,3 +72,6 @@ async def main() -> None:
         await bot.session.close()
         if isinstance(storage, RedisStorage):
             await storage.redis.aclose()
+
+if __name__ == "__main__":
+    asyncio.run(main())
