@@ -1,10 +1,8 @@
-# 💇‍♀️ Telegram Beauty Bot
+💇‍♀️ Telegram Beauty Bot
+🌟 Описание проекта
 
-## 🌟 **Описание проекта**
-
-## **Телеграм-бот для онлайн-записи клиентов на стрижки, укладки и другие бьюти-услуги с интеграцией Google Calendar, Подходит как для салона, так и для частного мастера.**
-
-## 📌 Возможности
+Телеграм-бот для онлайн-записи клиентов на стрижки, укладки и другие бьюти-услуги с интеграцией Google Calendar. Подходит как для салона, так и для частного мастера.
+📌 Возможности
 
     ✅ Выбор услуги (стрижка, укладка, окрашивание, брови и др.)
 
@@ -22,125 +20,108 @@
 
     ✅ Панель администратора для управления записями
 
----
+🛠 Стек технологий
 
-## 🛠 Стек технологий
+    Python 3.10+
 
--    Python 3.10+
+    Aiogram 3.x
 
--    Aiogram 3.x
+    PostgreSQL — хранение записей
 
--    PostgreSQL — хранение записей
+    SQLAlchemy + Alembic — ORM и миграции
 
--    SQLAlchemy + Alembic — ORM и миграции
+    Redis — FSM (машина состояний) и кеш
 
--    Redis — для FSM (машина состояний) и кеша
+    Docker + docker-compose — развёртывание
 
--    Docker + docker-compose — развёртывание
+    Google Calendar API — синхронизация расписания
 
--    Google Calendar API — синхронизация расписания
+🚀 Deployment & Run (Docker)
+1) Подготовка окружения
 
----
+# клонируем репозиторий
+git clone https://github.com/Mr-Shams86/beauty_bot.git
+cd beauty_bot
 
-## 🚀 Установка и запуск
+# создаём .env на основе примера
+cp .env.example .env
+# отредактируй .env: BOT_TOKEN, ADMIN_ID, GCAL_CALENDAR_ID и т.д.
 
-1. **Клонировать репозиторий**
+# поместить ключ сервис-аккаунта
+mkdir -p secrets
+# файл должен называться gcal-service-account.json
+# и лежать в ./secrets/gcal-service-account.json
 
-- git clone https://github.com/Mr-Shams86/beauty_bot.git
-- cd beauty_bot
+2) Сборка и запуск
 
-2. **Создать .env на основе .env.example**
+# полная пересборка образа (после изменения зависимостей)
+docker-compose build --no-cache
 
-- BOT_TOKEN=your_bot_token_here
-- ADMIN_ID=your_admin_id_here
+# запуск всех сервисов
+docker-compose up -d
 
-- TZ=Asia/Tashkent
-- DEBUG=True
+3) Применение миграций
 
-- POSTGRES_HOST=postgres
-- POSTGRES_PORT=5432
-- POSTGRES_DB=beautybot
-- POSTGRES_USER=beautybot
-- POSTGRES_PASSWORD=supersecret
-- DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+Миграции обычно запускаются автоматически в entrypoint.sh, но можно вручную:
 
-- REDIS_HOST=redis
-- REDIS_PORT=6379
-- REDIS_DB=0
+docker-compose exec bot alembic upgrade head
 
-- GCAL_CALENDAR_ID=your_calendar_id_here
+4) Логи и управление
 
-3. **Запустить через Docker**
+# смотреть логи бота
+docker-compose logs -f bot
 
-- docker compose up -d
+# перезапустить только бота
+docker-compose restart bot
 
-4. **Применить миграции базы данных**
+# остановить все сервисы
+docker-compose down
 
-- docker compose exec bot alembic upgrade head
+📖 Команды бота
+Команда	Описание
+/start	Начало работы
+/add_appointment	Добавить запись
+/appointments	Посмотреть все записи (только админ)
+/get_id	Узнать свой Telegram ID
 
-## 📖 Команды бота
 
-- Команда	Описание
-- /start	Начало работы
-- /add_appointment	Добавить запись
-- /appointments	Посмотреть все записи (только админ)
-- /get_id	Узнать свой Telegram ID
+📂 Структура проекта
 
----
-
-## 📂 Структура проекта
-
-```
 📦 beauty_bot
-.
-├── 📁 alembic — 📜 миграции базы данных (Alembic)  
-│   ├── env.py — ⚙️ настройки Alembic  
-│   └── 📁 versions — 🗂 история миграций  
-│       └── 0001_create_appointments.py — 🏗 создание таблицы записей  
+├── alembic/              # миграции базы данных
+│   ├── env.py
+│   └── versions/         # история миграций
+│       └── 0001_create_appointments.py
 │
-├── alembic.ini — ⚙️ конфигурация Alembic  
-├── bot.py — 🚀 точка входа бота  
-├── config.py — 🔧 конфигурация проекта (.env)  
-├── database.py — 🗄 подключение к PostgreSQL  
-├── docker-compose.yml — 🐳 конфигурация Docker Compose  
-├── Dockerfile — 📦 образ Docker для бота  
-├── entrypoint.sh — ▶️ скрипт запуска контейнера  
+├── alembic.ini           # конфигурация Alembic
+├── bot.py                # точка входа бота
+├── config.py             # конфигурация проекта
+├── database.py           # подключение к PostgreSQL
+├── docker-compose.yml    # конфигурация Docker Compose
+├── Dockerfile            # Docker-образ бота
+├── entrypoint.sh         # запуск контейнера
 │
-├── 📁 handlers — 🎯 обработчики команд и сообщений  
-│   ├── admin.py — 🛠 панель администратора  
-│   └── client.py — 💬 логика для пользователей  
+├── handlers/             # обработчики команд
+│   ├── admin.py          # панель администратора
+│   └── client.py         # логика для пользователей
 │
-├── keyboards.py — ⌨️ кнопки (Inline/Reply)  
-├── README.md — 📖 описание проекта  
-├── requirements.txt — 📋 зависимости Python  
+├── keyboards.py          # Inline/Reply-кнопки
 │
-├── 📁 secrets — 🔒 секреты (не вносятся в Git)  
-│   └── gcal-service-account.json — 🔑 ключ для Google Calendar API  
+├── middlewares/          # кастомные middleware
+│   └── throttling.py     # ограничение частоты запросов
 │
-├── 📁 services — 🛎 работа с внешними сервисами  
-│   ├── appointments.py — 📅 управление записями  
-│   └── calendar.py — 📆 интеграция с Google Calendar  
+├── requirements.txt      # зависимости Python
+├── README.md             # документация проекта
 │
-├── structure.txt — 📄 описание структуры (локально)  
+├── secrets/              # 🔒 секреты (не коммитить в Git)
+│   └── gcal-service-account.json
 │
-└── 📁 utils — 🛠 вспомогательные утилиты  
-    └── helpers.py — 🧩 функции-помощники  
-
-```
----
-
-## 🔗 Ссылки
-
-- [GitHub репозиторий](https://github.com/Mr-Shams86/beauty_bot)
-
-## 📢 **Контакты**
-
-- **Email**: sammertime763@gmail.com
-
-- **Telegram**: [Mr_Shams_1986](https://t.me/Mr_Shams_1986)
-
----
-
-## 📜 Лицензия
-
-## MIT — используй и дорабатывай свободно.
+├── services/             # работа с внешними сервисами
+│   ├── appointments.py   # управление записями
+│   └── calendar.py       # интеграция с Google Calendar
+│
+├── utils/                # вспомогательные утилиты
+│   ├── helpers.py        # вспомогательные функции
+│   └── logging.py        # настройка логирования
+│
+└── structure.txt         # автогенерация структуры проекта
