@@ -1,27 +1,31 @@
-# Dockerfile
 FROM python:3.12-slim
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Установим tzdata, чтобы работала таймзона
+# tzdata для таймзоны
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Зависимости
+# зависимости
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip wheel \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Код
+# код
 COPY . .
 
-# Скрипт запуска (миграции + бот)
-COPY entrypoint.sh /entrypoint.sh
+# не-рут пользователь
+RUN useradd -ms /bin/bash appuser
+USER appuser
+
+# скрипт запуска (миграции + бот)
+COPY --chown=appuser:appuser entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Таймзона берётся из ENV TZ
+# таймзона берётся из ENV TZ
 ENTRYPOINT ["/entrypoint.sh"]
