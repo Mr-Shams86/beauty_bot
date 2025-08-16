@@ -1,5 +1,6 @@
 from __future__ import annotations
-import asyncio
+
+from scheduler.reminders import setup_scheduler
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -50,6 +51,7 @@ async def create_storage():
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+    setup_scheduler(bot)
     storage = await create_storage()
     dp = Dispatcher(storage=storage)
 

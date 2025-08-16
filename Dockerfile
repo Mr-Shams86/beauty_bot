@@ -29,3 +29,8 @@ RUN chmod +x /entrypoint.sh
 
 # таймзона берётся из ENV TZ
 ENTRYPOINT ["/entrypoint.sh"]
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python - <<'PY'
+import os, sys
+sys.exit(0 if os.getenv("BOT_TOKEN") else 1)
+PY
