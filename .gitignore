@@ -22,3 +22,6 @@ secrets/
 
 # docker/compose
 docker-data/
+
+# временные файлы
+Task
