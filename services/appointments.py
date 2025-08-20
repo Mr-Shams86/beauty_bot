@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import datetime as dt
 import logging
 
@@ -23,12 +22,6 @@ from services.calendar import (
 )
 
 log = logging.getLogger(__name__)
-
-
-def _hours_from_minutes(minutes: int) -> int:
-    """Google Calendar helper: округляем вверх до целых часов (минимум 1)."""
-    minutes = minutes or 60
-    return max(1, math.ceil(minutes / 60))
 
 
 async def create_appointment_and_sync(
@@ -65,8 +58,8 @@ async def create_appointment_and_sync(
     log.info("Appointment %s created in DB", appt_id)
 
     # Calendar
-    duration_h = _hours_from_minutes(svc.duration_min)
-    event_id = await add_event_to_calendar(user_name, service_name, date, duration_hours=duration_h)
+    duration_min = getattr(svc, "duration_min", 60)
+    event_id = await add_event_to_calendar(user_name, service_name, date, duration_min=duration_min)
     if event_id:
         await db_set_event_id(appt_id, event_id)
         log.info("Calendar event set for %s: %s", appt_id, event_id)
@@ -112,8 +105,7 @@ async def reschedule_appointment_and_sync(
 
     # Calendar
     if appt.event_id:
-        duration_h = _hours_from_minutes(duration_min)
-        success = await update_event_in_calendar(appt.event_id, user_name, service_name, new_date, duration_hours=duration_h)
+        success = await update_event_in_calendar(appt.event_id, user_name, service_name, new_date, duration_min=duration_min)
         if not success:
             log.warning("Calendar update failed for %s", appointment_id)
 

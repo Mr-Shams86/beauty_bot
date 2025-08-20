@@ -67,7 +67,7 @@ async def add_appointment_to_sheet(name: str, service: str, date: dt.datetime) -
         client = _gspread_client_sync()
         sheet = client.open("Appointments").sheet1
         _ensure_sheet_headers(sheet)
-        target = [name.strip(), service.strip(), _fmt_sheet_dt(date)]
+        target = [str(name or "").strip(), str(service or "").strip(), _fmt_sheet_dt(date)]
         records = sheet.get_all_values()
         for row in records[1:]:
             if (
