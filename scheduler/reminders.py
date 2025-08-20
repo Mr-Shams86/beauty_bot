@@ -15,7 +15,7 @@ from database import get_appointments, AppointmentStatus
 # ключ: (appointment_id, "24h"/"2h", minute_dt)
 _recent: Dict[Tuple[int, str, dt.datetime], float] = {}
 
-WINDOW_SEC = 75  # сколько держим метку «уже слали» (сек)
+WINDOW_SEC = 90  # сколько держим метку «уже слали» (сек)
 
 def _floor_minute(d: dt.datetime) -> dt.datetime:
     return d.astimezone(TZ).replace(second=0, microsecond=0)
@@ -35,7 +35,7 @@ async def _tick(bot):
     # целевые моменты: через 24 часа и через 2 часа от текущего момента
     targets = [
         (now + dt.timedelta(hours=24), "24h", "за 24 часа"),
-        (now + dt.timedelta(hours=2),  "2h",  "за 2 часа"),
+        (now + dt.timedelta(hours=1),  "1h",  "за 1 час"),
     ]
 
     # чистим кэш дублей
@@ -45,6 +45,11 @@ async def _tick(bot):
     for a in appts:
         # напоминаем только по подтверждённым записям
         if getattr(a, "status", None) != AppointmentStatus.CONFIRMED:
+            continue
+        
+        # пропускаем слишком далёкие/прошедшие (защитный фильтр)
+        delta = (a.date - now).total_seconds()
+        if not(0 <= delta < 25 * 3600):
             continue
 
         # убеждаемся, что дата aware
