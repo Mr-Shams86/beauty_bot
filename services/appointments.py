@@ -40,7 +40,7 @@ async def create_appointment_and_sync(
 ) -> int:
     
     # валидация имени
-    user_name = user_name.strip()
+    user_name = (user_name or "").strip()
     if not user_name:
         raise ValueError("Укажите имя")
     
@@ -50,9 +50,11 @@ async def create_appointment_and_sync(
     if date < dt.datetime.now(date.tzinfo):
         raise ValueError("нельзя бронировать прошедшее время")
 
+    # тянем услугу
     svc = await get_service_by_id(service_id)
     if not svc:
         raise ValueError("Service not found")
+    service_name = svc.name
 
 
     # конфликт слотов
@@ -64,7 +66,7 @@ async def create_appointment_and_sync(
     log.info("Appointment %s created in DB", appt_id)
 
     # Calendar
-    duration_h = _hours_from_minutes(getattr(svc, "duration_min", 60))
+    duration_h = _hours_from_minutes(svc.duration_min)
     event_id = await add_event_to_calendar(user_name, service_name, date, duration_hours=duration_h)
     if event_id:
         await db_set_event_id(appt_id, event_id)

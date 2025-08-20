@@ -1,4 +1,6 @@
 # handlers/admin.py
+import math
+
 from __future__ import annotations
 import logging
 
@@ -68,10 +70,12 @@ async def show_appointments(message: Message):
         await message.answer("📋 Записей пока нет.")
         return
 
-    lines = [
-        f"🆔 {a.id} | 👤 {a.name} | 💇 {a.service} | 📅 {format_local_datetime(a.date)}"
-        for a in appts
-    ]
+    lines = []
+    for a in appts:
+        svc_name = a.service.name if getattr(a, "service", None) else "Услуга"
+        lines.append(
+            f"🆔 {a.id} | 👤 {a.name or '-'} | 💇 {svc_name} | 📅 {format_local_datetime(a.date)}"
+        )
     await message.answer("📋 <b>Список записей:</b>\n" + "\n".join(lines))
 
 
@@ -88,7 +92,9 @@ async def delete_via_callback(call: CallbackQuery):
     if not appt:
         return await call.answer("Запись не найдена", show_alert=True)
 
-    await delete_appointment_from_sheet(appt.name, appt.service, appt.date)
+    svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
+
+    await delete_appointment_from_sheet(appt.name or "", svc_name, appt.date)
     if appt.event_id:
         await delete_event_from_calendar(appt.event_id)
     await delete_appointment(appt_id)
@@ -118,9 +124,11 @@ async def process_delete(message: Message, state: FSMContext):
         await message.answer("❌ Запись не найдена!")
         await state.clear()
         return
+    
+    svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
 
     # Google сначала (Sheets + Calendar), затем БД
-    deleted_from_sheets = await delete_appointment_from_sheet(appt.name, appt.service, appt.date)
+    deleted_from_sheets = await delete_appointment_from_sheet(appt.name or "", svc_name, appt.date)
     if appt.event_id:
         await delete_event_from_calendar(appt.event_id)
 
@@ -187,13 +195,18 @@ async def process_new_date(message: Message, state: FSMContext):
     if not ok:
         await message.answer("⚠️ Ошибка при обновлении базы данных!")
         return
+    
+    svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
 
     if appt.event_id:
-        await update_event_in_calendar(appt.event_id, appt.name, appt.service, new_dt)
-    await update_appointment_in_sheet(appt.name, appt.service, appt.date, new_dt)
+        duration_h = max(1, math.ceil((appt.duration_min or 60) / 60))
+        await update_event_in_calendar(appt.event_id, appt.name or "Клиент", svc_name, new_dt, duration_hours=duration_h)
+
+    await update_appointment_in_sheet(appt.name or "", svc_name, appt.date, new_dt)
 
     await message.answer(f"✅ Запись <b>ID {appt_id}</b> перенесена на {format_local_datetime(new_dt)}.")
     await state.clear()
+
 
 
 # ---- Подтверждение ----
@@ -215,8 +228,11 @@ async def confirm_appointment(call: CallbackQuery):
         await call.message.answer("⚠️ Не удалось обновить статус.")
         return
 
+    svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
+
     if not appt.event_id:
-        event_id = await add_event_to_calendar(appt.name, appt.service, appt.date)
+        duration_h = max(1, math.ceil((appt.duration_min or 60) / 60))
+        event_id = await add_event_to_calendar(appt.name or "Клиент", svc_name, appt.date, duration_hours=duration_h)
         if event_id:
             await update_appointment_event_id(appt_id, event_id)
             appt.event_id = event_id
@@ -233,6 +249,7 @@ async def confirm_appointment(call: CallbackQuery):
     )
 
 
+
 # ---- Отмена ----
 async def cancel_appointment(call: CallbackQuery):
     appt_id_txt = call.data.split("_", 1)[1]
@@ -247,7 +264,9 @@ async def cancel_appointment(call: CallbackQuery):
         await call.message.answer("❌ Запись не найдена.")
         return
 
-    await delete_appointment_from_sheet(appt.name, appt.service, appt.date)
+    svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
+
+    await delete_appointment_from_sheet(appt.name or "", svc_name, appt.date)
     if appt.event_id:
         await delete_event_from_calendar(appt.event_id)
 
@@ -258,9 +277,10 @@ async def cancel_appointment(call: CallbackQuery):
 
     await call.bot.send_message(
         appt.user_id,
-        f"❌ Ваша запись на {appt.service} ({format_local_datetime(appt.date)}) отменена."
+        f"❌ Ваша запись на {svc_name} ({format_local_datetime(appt.date)}) отменена."
     )
     await call.message.edit_text("❌ Запись удалена и отменена везде.")
+
 
 
 # ---- Регистрация ----
