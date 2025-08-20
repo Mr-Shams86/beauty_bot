@@ -1,8 +1,12 @@
 .
 ├── alembic
 │   ├── env.py
+│   ├── script.py.mako
 │   └── versions
-│       └── 0001_create_appointments.py
+│       ├── 0001_create_appointments.py
+│       ├── 0002_add_users_and_services.py
+│       ├── 0003_make_appointments_name_nullable.py
+│       └── f4f775f37abe_make_appointments_name_nullable_indexes_.py
 ├── alembic.ini
 ├── bot.py
 ├── config.py
@@ -27,8 +31,9 @@
 │   ├── appointments.py
 │   └── calendar.py
 ├── structure.txt
+├── Task
 └── utils
     ├── helpers.py
     └── logging.py
 
-8 directories, 23 files
+8 directories, 28 files
