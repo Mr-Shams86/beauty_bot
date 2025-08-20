@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional, List
 
 from sqlalchemy import (
-    String, Text, DateTime, Numeric, func, select, ForeignKey, Integer, and_
+    String, Text, DateTime, Numeric, func, select, ForeignKey, Integer
 )
 from sqlalchemy.dialects.postgresql import BIGINT
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -209,7 +209,7 @@ async def delete_appointment(appointment_id: int) -> bool:
 
 
 # ---------- Валидация слотов ----------
-async def has_time_conflict(start: dt.datetime, duration_min: int) -> bool:
+async def has_time_conflict(start: dt.datetime, duration_min: int, exclude_id: int | None = None) -> bool:
     """
     Проверка пересечения со СУЩЕСТВУЮЩИМИ (не отменёнными) слотами.
     Делаем предварительный SQL-фильтр по окну времени, а точную проверку — в Python.
@@ -231,6 +231,8 @@ async def has_time_conflict(start: dt.datetime, duration_min: int) -> bool:
         )
         res = await s.execute(q)
         for a in res.scalars():
+            if exclude_id and a.id == exclude_id:
+                continue  # <--пропускаем саму запись
             a_end = a.date + dt.timedelta(minutes=(a.duration_min or 60))
             # пересечение интервалов [start, end) и [a.date, a_end)
             if (start < a_end) and (a.date < end):

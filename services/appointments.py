@@ -28,7 +28,8 @@ log = logging.getLogger(__name__)
 
 def _hours_from_minutes(minutes: int) -> int:
     """Google Calendar helper: округляем вверх до целых часов (минимум 1)."""
-    return max(1, math.ceil((minutes or 60) / 60))
+    minutes = minutes or 60
+    return max(1, math.ceil(minutes / 60))
 
 
 async def create_appointment_and_sync(
@@ -37,6 +38,12 @@ async def create_appointment_and_sync(
     service_id: int,
     date: dt.datetime,
 ) -> int:
+    
+    # валидация имени
+    user_name = user_name.strip()
+    if not user_name:
+        raise ValueError("Укажите имя")
+    
     # валидация времени
     if date.tzinfo is None:
         raise ValueError("date должен быть timezone-aware")
@@ -47,17 +54,18 @@ async def create_appointment_and_sync(
     if not svc:
         raise ValueError("Service not found")
 
+
     # конфликт слотов
     if await has_time_conflict(date, svc.duration_min):
         raise ValueError("Этот слот уже занят")
 
     # БД
-    appt_id = await db_add(user_id=user_id, service_id=service_id, date=date)
+    appt_id = await db_add(user_id=user_id, service_id=service_id, date=date, name=user_name)
     log.info("Appointment %s created in DB", appt_id)
 
     # Calendar
-    duration_h = _hours_from_minutes(svc.duration_min)
-    event_id = await add_event_to_calendar(user_name, svc.name, date, duration_hours=duration_h)
+    duration_h = _hours_from_minutes(getattr(svc, "duration_min", 60))
+    event_id = await add_event_to_calendar(user_name, service_name, date, duration_hours=duration_h)
     if event_id:
         await db_set_event_id(appt_id, event_id)
         log.info("Calendar event set for %s: %s", appt_id, event_id)
@@ -65,7 +73,8 @@ async def create_appointment_and_sync(
         log.warning("Calendar failed for appointment %s", appt_id)
 
     # Sheets
-    await add_appointment_to_sheet(user_name, svc.name, date)
+    await add_appointment_to_sheet(user_name, service_name, date)
+
 
     return appt_id
 
@@ -87,10 +96,10 @@ async def reschedule_appointment_and_sync(
     svc = await get_service_by_id(appt.service_id) if appt.service_id else None
     service_name = getattr(svc, "name", "Услуга")
     duration_min = getattr(svc, "duration_min", appt.duration_min or 60)
-    user_name = getattr(appt, "name", "Клиент")  # ← оставь поле name в модели Appointment
+    user_name = getattr(appt, "name", "Клиент")
 
     # проверка конфликта
-    if await has_time_conflict(new_date, duration_min):
+    if await has_time_conflict(new_date, duration_min, exclude_id=appointment_id):
         raise ValueError("Этот слот уже занят")
 
     old_date = appt.date

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import datetime as dt
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -9,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from config import ADMIN_ID
-from utils.helpers import parse_local_datetime, format_local_datetime
+from utils.helpers import parse_local_datetime, format_local_datetime, TZ
 
 # DB helpers
 from database import (
@@ -17,6 +18,8 @@ from database import (
     get_service_by_id,
     get_service_by_name,
     get_future_appointments_by_user,
+    upsert_user,
+    has_time_conflict,
 )
 
 # Сервисы (единая точка синхронизации)
@@ -75,8 +78,16 @@ async def process_service(message: Message, state: FSMContext):
         if 0 <= idx < len(all_svcs):
             svc = all_svcs[idx]
     if not svc:
-        # пробуем по имени (без учёта регистра)
-        svc = await get_service_by_name(raw)
+        svc = await get_service_by_name(raw, partial=True)
+    if not svc:
+        services = await list_services()
+        lines = [f"{i+1}) {s.name} — {s.duration_min} мин."
+                 for i, s in enumerate(services)]
+        await message.answer(
+            "❌ Не удалось распознать услугу.\n"
+            "Отправьте номер из списка или точное название:\n\n" + "\n".join(lines)
+        )
+        return
 
     if not svc:
         await message.answer("❌ Не удалось распознать услугу. Отправьте номер из списка или точное название.")
@@ -101,18 +112,40 @@ async def process_date(message: Message, state: FSMContext):
         await state.set_state(AppointmentForm.service)
         return
 
-    # Парсим локальную дату «ДД.ММ.ГГГГ ЧЧ:ММ» → aware datetime (Asia/Tashkent)
+    # # 1) Парсинг и «не прошлое»./ Парсим локальную дату «ДД.ММ.ГГГГ ЧЧ:ММ» → aware datetime (Asia/Tashkent)
     try:
-        appt_dt = parse_local_datetime(date_raw)
+        appt_dt = parse_local_datetime(date_raw) # -> aware (Asia/Tashkent)
     except Exception:
         await message.answer("❌ Неверный формат. Используйте <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>.", parse_mode="HTML")
         return
 
-    # Для сообщений подтянем название услуги
-    svc = await get_service_by_id(service_id)
-    service_name = svc.name if svc else "Услуга"
+    if appt_dt < dt.datetime.now(tz=TZ):
+        await message.answer("❌ Нельзя записаться на прошедшую дату.")
+        return
 
-    # Создаём запись и синхронизируем (БД + Calendar + Sheets)
+    # 2) Подтянуть услугу и длительность
+    svc = await get_service_by_id(service_id)
+    if not svc:
+        await message.answer("❌ Услуга не найдена. Попробуйте снова.")
+        await state.set_state(AppointmentForm.service)
+        return
+    service_name = svc.name
+    duration_min = svc.duration_min or 60  # по умолчанию 60 минут
+    
+    # 3) Конфликты
+    if await has_time_conflict(appt_dt, duration_min):
+        await message.answer("❌ Время занято. Выберите другое.")
+        return
+    
+    # (опц.) обновим/создадим запись о пользователе
+    fallback_name = (message.from_user.full_name or message.from_user.username or "").strip() or f"user_{user_id}"
+    try:
+        await upsert_user(telegram_id=user_id, name=user_name or fallback_name)
+    except Exception as e:
+        log.warning("upsert_user failed: %s", e)
+
+
+    # 4) Создаём запись и синхронизируем (БД + Calendar + Sheets)
     try:
         appt_id = await create_appointment_and_sync(
             user_id=user_id,
@@ -124,7 +157,7 @@ async def process_date(message: Message, state: FSMContext):
         await message.answer(f"❌ {e}")
         return
 
-    # Шлём админу карточку с кнопками confirm/cancel
+    # 5) Шлём админу карточку с кнопками confirm/cancel
     await message.bot.send_message(
         ADMIN_ID,
         (
@@ -169,6 +202,8 @@ async def my_appointments(message: Message):
 def register_client_handlers(dp: Dispatcher):
     """Регистрация клиентских хендлеров."""
     dp.message.register(start_menu, Command("start"))
+    dp.message.register(my_appointments, Command("my"))
+    
     dp.message.register(start_appointment, F.text == "✅ Записаться 📝")
     dp.message.register(my_appointments,  F.text == "✅ Мои записи 📅")
 

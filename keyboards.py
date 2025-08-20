@@ -1,4 +1,3 @@
-# keyboards.py
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
     ReplyKeyboardMarkup, KeyboardButton
@@ -31,6 +30,30 @@ def admin_control_buttons(appointment_id: int) -> InlineKeyboardMarkup:
     )
 
 
+# --- Новые: выбор услуги + управление своими записями ---
+
+def services_keyboard(services: list) -> InlineKeyboardMarkup:
+    """
+    Клавиатура со списком услуг (каждая кнопка = service_id).
+    services: список объектов с .id и .name
+    """
+    rows = [[InlineKeyboardButton(text=svc.name, callback_data=f"svc_{svc.id}")]
+            for svc in services]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def my_appointment_controls(appointment_id: int) -> InlineKeyboardMarkup:
+    """Инлайн для управления записью клиентом (перенос/отмена)."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📝 Перенести", callback_data=f"resched_{appointment_id}"),
+                InlineKeyboardButton(text="❌ Отменить", callback_data=f"usercancel_{appointment_id}"),
+            ]
+        ]
+    )
+
+
 # --- Reply-меню ---
 
 # Клиентское меню (исчезает после нажатия — удобно для UX)
@@ -44,7 +67,6 @@ client_menu = ReplyKeyboardMarkup(
 )
 
 # Админ-меню (оставляем постоянным, чтобы не пропадало)
-# В ТЕКСТЕ специально без «вариаций» эмодзи, чтобы фильтр .contains стабильно срабатывал
 ADMIN_MENU_LIST_LABEL   = "📋 Список записей"
 ADMIN_MENU_DELETE_LABEL = "🗑 Удалить запись"
 ADMIN_MENU_EDIT_LABEL   = "✏ Изменить запись"
@@ -55,5 +77,5 @@ admin_menu = ReplyKeyboardMarkup(
         [KeyboardButton(text=ADMIN_MENU_DELETE_LABEL), KeyboardButton(text=ADMIN_MENU_EDIT_LABEL)],
     ],
     resize_keyboard=True,
-    one_time_keyboard=False,  # для админа удобнее, когда меню не исчезает
+    one_time_keyboard=False,
 )
