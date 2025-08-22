@@ -6,6 +6,7 @@
 │       ├── 0001_create_appointments.py
 │       ├── 0002_add_users_and_services.py
 │       ├── 0003_make_appointments_name_nullable.py
+│       ├── 0004_add_phone_to_users.py
 │       └── f4f775f37abe_make_appointments_name_nullable_indexes_.py
 ├── alembic.ini
 ├── bot.py
@@ -36,4 +37,4 @@
     ├── helpers.py
     └── logging.py
 
-8 directories, 28 files
+8 directories, 29 files
