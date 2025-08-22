@@ -17,7 +17,7 @@ from config import DATABASE_URL
 class Base(DeclarativeBase):
     pass
 
-
+    
 # ---------- Dictionaries ----------
 class User(Base):
     __tablename__ = "users"
@@ -25,8 +25,10 @@ class User(Base):
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     telegram_id: Mapped[int] = mapped_column(BIGINT, unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # было: phone = mapped_column(String(32), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)  # ← индекс, чтобы соответствовать БД
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
 
 
 class Service(Base):
@@ -45,29 +47,26 @@ class AppointmentStatus:
     CANCELLED = "Отменено"
 
 
+# ---------- Appointments ----------
 class Appointment(Base):
     __tablename__ = "appointments"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-    # !!! По текущей схеме: telegram_id пользователя, не FK на users.id
     user_id: Mapped[int] = mapped_column(BIGINT, index=True)
 
-    # В БД поле name ЕСТЬ — оставляем для совместимости с текущими хендлерами
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    # было: nullable=False
+    name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ← как в миграции 0003
 
     service_id: Mapped[Optional[int]] = mapped_column(BIGINT, ForeignKey("services.id"), index=True)
     duration_min: Mapped[Optional[int]] = mapped_column(Integer)
-
-    # чтобы удобно получать название услуги
     service: Mapped[Optional[Service]] = relationship(lazy="joined")
 
     date: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
     status: Mapped[str] = mapped_column(String(32), index=True, default=AppointmentStatus.PENDING)
     event_id: Mapped[Optional[str]] = mapped_column(Text)
-
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 
 
 # ---------- Engine / Session ----------
@@ -206,6 +205,12 @@ async def delete_appointment(appointment_id: int) -> bool:
         await s.delete(appt)
         await s.commit()
         return True
+
+# ---------- Users CRUD ----------
+async def get_user_by_telegram(telegram_id: int) -> Optional[User]:
+    async with AsyncSessionLocal() as s:
+        res = await s.execute(select(User).where(User.telegram_id == telegram_id))
+        return res.scalar_one_or_none()
 
 
 # ---------- Валидация слотов ----------

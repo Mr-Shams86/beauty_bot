@@ -38,10 +38,19 @@ from keyboards import (
 
 log = logging.getLogger(__name__)
 
+# ---------- простая нормализация телефона под +998XXXXXXXXX ----------
+PHONE_RE = re.compile(r'^(\+?998)\d{9}$')
+def normalize_phone(raw: str) -> str | None:
+    digits = re.sub(r'\D', '', raw or '')
+    if digits.startswith('998') and len(digits) == 12:
+        return f'+{digits}'
+    return None
+
 
 # ===== FSM =====
 class AppointmentForm(StatesGroup):
     name = State()
+    phone = State()
     service = State()   # храним service_id
     date = State()
 
@@ -66,8 +75,13 @@ async def start_appointment(message: Message, state: FSMContext):
 
 
 async def process_name(message: Message, state: FSMContext):
-    """Сохраняет имя и предлагает услуги из справочника (инлайн-кнопки + подсказка по номеру/названию)."""
     await state.update_data(name=(message.text or "").strip())
+    await message.answer(
+        "📱 Укажите номер телефона в формате <b>+998XXXXXXXXX</b>\n"
+        "Можно с пробелами/скобками — я всё пойму 😉",
+        parse_mode="HTML",
+    )
+    await state.set_state(AppointmentForm.phone)
 
     services = await list_services()
     if not services:
@@ -82,11 +96,32 @@ async def process_name(message: Message, state: FSMContext):
     await state.set_state(AppointmentForm.service)
 
 
+def _normalize_phone(s: str) -> str:
+    return "".join(ch for ch in s if ch.isdigit() or ch == '+')
+
+async def process_phone(message: Message, state: FSMContext):
+    phone_norm = normalize_phone(message.text or "")
+    if not phone_norm:
+        return await message.answer("❌ Неверный номер. Пример: <b>+998901234567</b>", parse_mode="HTML")
+
+    await state.update_data(phone=phone_norm)
+
+    # показываем услуги после корректного телефона
+    services = await list_services()
+    if not services:
+        return await message.answer("⚠️ Список услуг пока пуст. Попробуйте позже.")
+
+    # Немного эмодзи для списка
+    lines = [f"{i+1}) 💇 {s.name} — ⏱️ {s.duration_min} мин."
+             for i, s in enumerate(services)]
+    await message.answer(
+        "Выберите услугу кнопкой ниже или отправьте номер/название:\n\n" + "\n".join(lines),
+        reply_markup=services_keyboard(services),
+    )
+    await state.set_state(AppointmentForm.service)
+
+
 async def process_service(message: Message, state: FSMContext):
-    """
-    Принимает номер/название (если пользователь не нажал инлайн-кнопку)
-    и сохраняет service_id.
-    """
     raw = (message.text or "").strip()
 
     svc = None
@@ -100,7 +135,8 @@ async def process_service(message: Message, state: FSMContext):
 
     if not svc:
         services = await list_services()
-        lines = [f"{i+1}) {s.name} — {s.duration_min} мин." for i, s in enumerate(services)]
+        lines = [f"{i+1}) 💇 {s.name} — ⏱️ {s.duration_min} мин."
+                 for i, s in enumerate(services)]
         await message.answer(
             "❌ Не удалось распознать услугу.\n"
             "Нажмите кнопку ниже или отправьте номер/точное название:\n\n" + "\n".join(lines),
@@ -109,7 +145,7 @@ async def process_service(message: Message, state: FSMContext):
         return
 
     await state.update_data(service_id=svc.id)
-    await message.answer("Введите дату в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>:", parse_mode="HTML")
+    await message.answer("📅 Введите дату в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>:", parse_mode="HTML")
     await state.set_state(AppointmentForm.date)
 
 
@@ -128,7 +164,7 @@ async def select_service_callback(call: CallbackQuery, state: FSMContext):
 
     await state.update_data(service_id=service_id)
     await call.message.edit_reply_markup(reply_markup=None)
-    await call.message.answer("Введите дату в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>:", parse_mode="HTML")
+    await call.message.answer("📅 Введите дату в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>:", parse_mode="HTML")
     await state.set_state(AppointmentForm.date)
     await call.answer()
 
@@ -139,6 +175,7 @@ async def process_date(message: Message, state: FSMContext):
     data = await state.get_data()
 
     user_name = (data.get("name") or "").strip()
+    phone = data.get("phone")
     service_id = data.get("service_id")
     date_raw = (message.text or "").strip()
 
@@ -192,12 +229,14 @@ async def process_date(message: Message, state: FSMContext):
         return
 
     # 5) Уведомление админу
+    phone_line = f"📞 {phone}\n" if phone else ""
     await message.bot.send_message(
         ADMIN_ID,
         (
             "📅 <b>Новая запись</b>\n"
             f"🆔 {appt_id}\n"
             f"👤 {user_name or fallback_name}\n"
+            f"📞 {phone or '—'}\n"
             f"💇 {service_name}\n"
             f"📍 Telegram: <code>{user_id}</code>\n"
             f"📅 {format_local_datetime(appt_dt)}"
@@ -333,6 +372,7 @@ def register_client_handlers(dp: Dispatcher):
 
     # FSM создания
     dp.message.register(process_name,    AppointmentForm.name)
+    dp.message.register(process_phone, AppointmentForm.phone)
     dp.message.register(process_service, AppointmentForm.service)
     dp.message.register(process_date,    AppointmentForm.date)
 
