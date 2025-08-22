@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import datetime as dt
+import re
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -83,21 +84,7 @@ async def process_name(message: Message, state: FSMContext):
     )
     await state.set_state(AppointmentForm.phone)
 
-    services = await list_services()
-    if not services:
-        await message.answer("⚠️ Список услуг пока пуст. Попробуйте позже.")
-        return
 
-    lines = [f"{i+1}) {s.name} — {s.duration_min} мин." for i, s in enumerate(services)]
-    await message.answer(
-        "Выберите услугу кнопкой ниже или отправьте номер/название:\n\n" + "\n".join(lines),
-        reply_markup=services_keyboard(services),
-    )
-    await state.set_state(AppointmentForm.service)
-
-
-def _normalize_phone(s: str) -> str:
-    return "".join(ch for ch in s if ch.isdigit() or ch == '+')
 
 async def process_phone(message: Message, state: FSMContext):
     phone_norm = normalize_phone(message.text or "")
@@ -212,7 +199,7 @@ async def process_date(message: Message, state: FSMContext):
     # (опц.) создать/обновить пользователя
     fallback_name = (message.from_user.full_name or message.from_user.username or "").strip() or f"user_{user_id}"
     try:
-        await upsert_user(telegram_id=user_id, name=user_name or fallback_name)
+        await upsert_user(telegram_id=user_id, name=(user_name or fallback_name), phone=phone)
     except Exception as e:
         log.warning("upsert_user failed: %s", e)
 
@@ -229,14 +216,14 @@ async def process_date(message: Message, state: FSMContext):
         return
 
     # 5) Уведомление админу
-    phone_line = f"📞 {phone}\n" if phone else ""
+    phone_line = f"📞 {phone}\n" if phone else "📞 —\n"
     await message.bot.send_message(
         ADMIN_ID,
         (
             "📅 <b>Новая запись</b>\n"
             f"🆔 {appt_id}\n"
             f"👤 {user_name or fallback_name}\n"
-            f"📞 {phone or '—'}\n"
+            f"{phone_line}"
             f"💇 {service_name}\n"
             f"📍 Telegram: <code>{user_id}</code>\n"
             f"📅 {format_local_datetime(appt_dt)}"
