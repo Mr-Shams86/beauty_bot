@@ -1,5 +1,5 @@
 # database.py
-from __future__ import annotations
+import os
 import datetime as dt
 from decimal import Decimal
 from typing import Optional, List
@@ -245,8 +245,10 @@ async def has_time_conflict(start: dt.datetime, duration_min: int, exclude_id: i
         return False
 
 
-# ---------- Локальная инициализация (только для первого запуска/локалки) ----------
+# ---------- Локальная инициализация (ТОЛЬКО для дев-окружения) ----------
 async def init_db() -> None:
+    if os.getenv("APP_ENV", "").lower() not in {"dev", "local"}:
+        raise RuntimeError("init_db() запрещено вне локальной разработки. Используй Alembic миграции.")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    print("✅ База данных (PostgreSQL) инициализирована!")
+    print("✅ Локальная БД инициализирована (create_all).")

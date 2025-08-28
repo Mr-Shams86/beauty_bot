@@ -200,8 +200,15 @@ async def process_new_date(message: Message, state: FSMContext):
     svc_name = appt.service.name if getattr(appt, "service", None) else "Услуга"
 
     if appt.event_id:
-        duration_h = max(1, math.ceil((appt.duration_min or 60) / 60))
-        await update_event_in_calendar(appt.event_id, appt.name or "Клиент", svc_name, new_dt, duration_hours=duration_h)
+        duration_min = appt.duration_min or 60
+        await update_event_in_calendar(
+            appt.event_id,
+            appt.name or "Клиент",
+            svc_name,
+            new_dt,
+            duration_minutes=duration_min,  # можно было бы оставить duration_hours=..., но лучше minutes
+        )
+
 
     await update_appointment_in_sheet(appt.name or "", svc_name, appt.date, new_dt)
 

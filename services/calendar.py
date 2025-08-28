@@ -1,5 +1,7 @@
 # services/calendar.py
 from __future__ import annotations
+from datetime import timedelta
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 import asyncio
 import datetime as dt
@@ -43,6 +45,43 @@ def _gspread_client_sync() -> gspread.Client:
         GCAL_CREDENTIALS_FILE, scopes=SCOPES_SHEETS
     )
     return gspread.authorize(creds)
+
+
+# ---------- общая нормализация длительности ----------
+def _norm_duration_to_minutes(
+    *, duration_minutes: int | None = None, duration_min: int | None = None, duration_hours: int | None = None
+) -> int:
+    """
+    Принимаем любой из вариантов и приводим к минутам.
+    Приоритет: minutes > min > hours. Дефолт 60.
+    """
+    if duration_minutes is not None:
+        minutes = int(duration_minutes)
+    elif duration_min is not None:
+        minutes = int(duration_min)
+    elif duration_hours is not None:
+        minutes = int(duration_hours) * 60
+    else:
+        minutes = 60
+    if minutes <= 0:
+        raise ValueError("duration must be > 0 minutes")
+    return minutes
+
+# =========================
+#   Google Sheets helpers (как у тебя было)
+# =========================
+def _ensure_sheet_headers(sheet) -> None:
+    want = ["Name", "Service", "Date"]
+    existing = sheet.row_values(1)
+    if existing != want:
+        if existing:
+            sheet.update(f"A1:C1", [want])
+        else:
+            sheet.insert_row(want, 1)
+
+def _fmt_sheet_dt(d: dt.datetime) -> str:
+    return d.astimezone(TZ).strftime("%d.%m.%Y %H:%M")
+
 
 # ---- Helpers (Sheets) ----
 def _ensure_sheet_headers(sheet) -> None:
@@ -160,17 +199,28 @@ async def add_event_to_calendar(
 
 @retry(**_retry)
 async def update_event_in_calendar(
-    event_id: str, name: str, service: str, new_date: dt.datetime, duration_min: int = 60
+    event_id: str,
+    name: str,
+    service: str,
+    new_date: dt.datetime,
+    *,
+    duration_minutes: int | None = None,
+    duration_min: int | None = None,
+    duration_hours: int | None = None,
 ) -> bool:
-    """Обновить время/название события по event_id."""
+    """Обновить событие. Принимает minutes/min/hours (минуты в приоритете)."""
     if not event_id:
         return False
     assert new_date.tzinfo is not None
 
+    minutes = _norm_duration_to_minutes(
+        duration_minutes=duration_minutes, duration_min=duration_min, duration_hours=duration_hours
+    )
+
     def _sync() -> bool:
         svc = _calendar_service_sync()
         start = new_date.astimezone(TZ)
-        end = start + dt.timedelta(minutes=duration_min)
+        end = start + dt.timedelta(minutes=minutes)
         body = {
             "summary": f"{name} - {service}",
             "start": {"dateTime": start.isoformat(), "timeZone": "Asia/Tashkent"},
@@ -187,10 +237,8 @@ async def update_event_in_calendar(
 
 @retry(**_retry)
 async def delete_event_from_calendar(event_id: str) -> bool:
-    """Удалить событие по event_id. 404 считаем «уже удалено»."""
     if not event_id:
         return False
-
     def _sync() -> bool:
         svc = _calendar_service_sync()
         try:
@@ -201,7 +249,6 @@ async def delete_event_from_calendar(event_id: str) -> bool:
             if status == 404:
                 return True
             raise
-
     try:
         return await asyncio.to_thread(_sync)
     except Exception as e:
