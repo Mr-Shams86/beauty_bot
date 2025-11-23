@@ -1,229 +1,223 @@
 ## 💇‍♀️ Telegram Beauty Bot
 
-## 🌟 Описание проекта
+## 🌟 Project Description
 
-**Телеграм-бот для онлайн-записи клиентов на стрижки, укладки и другие бьюти-услуги с интеграцией Google Calendar. Подходит как для салона, так и для частного мастера.**
+**A Telegram bot for online booking of haircuts, styling, and other beauty services with Google Calendar integration. Suitable for both salons and independent beauty professionals.**
 
-## Проект демонстрирует навыки интеграции Telegram-бота с внешними API (Google Calendar, Google Sheets), работу с базой данных, Redis, Docker, а также реализацию полноценной бизнес-логики.
+## The project demonstrates skills in integrating a Telegram bot with external APIs (Google Calendar, Google Sheets), working with databases, Redis, Docker, and implementing full business logic.
 
 
-## 📌 Возможности
+## 📌 Features
 
-✅ Запись клиента через пошаговую форму (имя → телефон → услуга → дата/время)
+✅ Client booking via step-by-step form (name → phone → service → date/time)
 
-✅ Проверка корректности номера телефона (формат +998XXXXXXXXX)
+✅ Phone number validation (+998XXXXXXXXX format)
 
-✅ Выбор услуги через инлайн-кнопки (стрижка, укладка, окрашивание, брови и др.)
+✅ Service selection via inline buttons (haircut, styling, coloring, brows, etc.)
 
-✅ Автоматическая проверка занятости и исключение конфликтов времени
+✅ Automatic availability check and time conflict prevention
 
-✅ Подтверждение или отклонение записи мастером
+✅ Appointment approval or rejection by the specialist
 
-✅ Автоматическое уведомление клиента о статусе
+✅ Automatic client notifications about booking status
 
-✅ Автоматическое уведомление мастеру в Telegram или календаре
+✅ Automatic notifications to the specialist (Telegram & Calendar)
 
-✅ Интеграция с Google Календарём (записи появляются в календаре мастера)
+✅ Google Calendar integration (appointments appear in the master’s calendar)
 
-✅ Интеграция с Google Sheets — автоматическое сохранение записей в таблицу
+✅ Google Sheets integration (appointments are automatically saved to a spreadsheet)
 
-✅ Возможность изменить (перенести) или отменить запись клиентом
+✅ Ability for the client to reschedule or cancel an appointment
 
-✅ Подробное уведомление мастеру: имя, телефон, услуга, дата/время
+✅ Detailed notifications for the specialist: name, phone, service, date/time
 
-✅ Панель администратора для управления записями
+✅ Admin panel for managing appointments
 
-🔜 Отправка напоминаний клиенту (24ч / 2ч до визита)
+🔜 Client reminders (24h / 2h before the appointment)
 
-## 🛠 Стек технологий
 
--    Python 3.10+
+## 🛠 Tech Stack
 
--    Aiogram 3.x
+- Python 3.10+
 
--    PostgreSQL — хранение записей
+- Aiogram 3.x
 
--    SQLAlchemy + Alembic — ORM и миграции
+- PostgreSQL — appointment storage
 
--    Redis — FSM (машина состояний) и кеш
+- SQLAlchemy + Alembic — ORM & migrations
 
--    Docker + docker-compose — развёртывание
+- Redis — FSM (state machine) and caching
 
--    Google Calendar API — синхронизация расписания
+- Docker + docker-compose — deployment
+
+- Google Calendar API — schedule synchronization
+
 
 ## 🚀 Deployment & Run (Docker)
 
-1) Подготовка окружения
+1) Environment setup
 
-# клонируем репозиторий
+# Clone the repository
+* git clone https://github.com/Mr-Shams86/beauty_bot.git
+* cd beauty_bot
 
-- git clone https://github.com/Mr-Shams86/beauty_bot.git
-- cd beauty_bot
+# Create .env from the example
+* cp .env.example .env
 
-# создаём .env на основе примера
-- cp .env.example .env
+# Edit .env: BOT_TOKEN, ADMIN_ID, GCAL_CALENDAR_ID, etc.
 
-# отредактируй .env: BOT_TOKEN, ADMIN_ID, GCAL_CALENDAR_ID и т.д.
+# Add Google service account key
+* mkdir -p secrets
 
-# поместить ключ сервис-аккаунта
-- mkdir -p secrets
+# The file must be named:
+# gcal-service-account.json
 
-# файл должен называться gcal-service-account.json
+# And placed here:
+# ./secrets/gcal-service-account.json
 
-# и лежать в ./secrets/gcal-service-account.json
+2) Build & Run
 
-2) Сборка и запуск
+# Full rebuild (after changing dependencies)
+* docker-compose build --no-cache
 
-# полная пересборка образа (после изменения зависимостей)
-- docker-compose build --no-cache
+# Start all services
+* docker-compose up -d
 
-# запуск всех сервисов
-- docker-compose up -d
+3) Run migrations
 
-3) Применение миграций
+* Migrations are usually applied automatically in entrypoint.sh, but you can also run them manually:
 
-- Миграции обычно запускаются автоматически в entrypoint.sh, но можно вручную:
+* docker-compose exec bot alembic upgrade head
 
-- docker-compose exec bot alembic upgrade head
+4) Logs & Management
 
-4) Логи и управление
+# View bot logs
+docker-compose logs -f bot
 
-# смотреть логи бота
-- docker-compose logs -f bot
+# Restart only the bot
+docker-compose restart bot
 
-# перезапустить только бота
-- docker-compose restart bot
-
-# остановить все сервисы
-- docker-compose down
-
-## 📖 Команды бота
-
-**Команда	        Описание**
-- /start	        Начало работы
-- /add_appointment	Добавить запись
-- /appointments	    Посмотреть все записи (только админ)
-- /get_id	        Узнать свой Telegram ID
+# Stop all services
+docker-compose down
 
 
-## 📂 Структура проекта
+## 📖 Bot Commands
+
+| Command            | Description                        |
+| ------------------ | ---------------------------------- |
+| `/start`           | Start the bot                      |
+| `/add_appointment` | Create a new appointment           |
+| `/appointments`    | View all appointments (admin only) |
+| `/get_id`          | Get your Telegram ID               |
+
+
+
+## 📂 Project Structure
 
 ```
 📦 beauty_bot
 .
-├── alembic/ 🗂️ Миграции базы данных
-│ ├── env.py ⚙️ Настройка Alembic окружения
-│ ├── script.py.mako 📜 Шаблон для генерации миграций
-│ └── versions/ 📜 Скрипты миграций
-│ ├── 0001_create_appointments.py 🏗️ Создание таблицы записей
-│ ├── 0002_add_users_and_services.py ➕ Таблицы пользователей и услуг
-│ ├── 0003_make_appointments_name_nullable.py ✏ Поле name nullable
-│ ├── 0004_add_phone_to_users.py 📞 Добавление телефона в users
-│ └── f4f775f37abe_make_appointments_name_nullable_indexes_.py ⚡ Индексы
+├── alembic/                            🗂️ Database migrations
+│   ├── env.py                           ⚙️ Alembic environment setup
+│   ├── script.py.mako                   📜 Migration generation template
+│   └── versions/                        📜 Migration scripts
+│       ├── 0001_create_appointments.py              🏗️ Create appointments table
+│       ├── 0002_add_users_and_services.py           ➕ Users & services tables
+│       ├── 0003_make_appointments_name_nullable.py  ✏ Make name field nullable
+│       ├── 0004_add_phone_to_users.py               📞 Add phone to users
+│       └── f4f775f37abe_make_appointments_name_nullable_indexes_.py ⚡ Add indexes
 │
-├── alembic.ini ⚙️ Конфигурация Alembic
-├── bot.py 🤖 Точка входа для Telegram-бота
-├── config.py 🔧 Конфигурация проекта (переменные окружения)
-├── database.py 🗄️ Модели и функции работы с БД
-├── docker-compose.yml 🐳 Docker Compose для запуска сервиса
-├── Dockerfile 📦 Docker-образ приложения
-├── entrypoint.sh 🚀 Скрипт запуска и применения миграций
+├── alembic.ini                          ⚙️ Alembic configuration
+├── bot.py                               🤖 Bot entry point
+├── config.py                            🔧 Project configuration (env variables)
+├── database.py                          🗄️ DB models and functions
+├── docker-compose.yml                   🐳 Docker Compose setup
+├── Dockerfile                           📦 Application Docker image
+├── entrypoint.sh                        🚀 Startup script & migrations
 │
-├── handlers/ 🎮 Обработчики команд
-│ ├── admin.py 👨‍💼 Логика администратора
-│ └── client.py 🙋 Логика клиента (записи, просмотр)
+├── handlers/                            🎮 Command handlers
+│   ├── admin.py                         👨‍💼 Admin logic
+│   └── client.py                        🙋 Client logic (booking, viewing)
 │
-├── healthcheck.py 🩺 Проверка состояния сервиса
-├── keyboards.py 🎹 Inline/Reply клавиатуры
+├── healthcheck.py                       🩺 Service health check
+├── keyboards.py                         🎹 Inline / Reply keyboards
 │
-├── middlewares/ 🛡️ Middleware
-│ └── throttling.py ⏱️ Ограничение спама
+├── middlewares/                         🛡️ Middleware
+│   └── throttling.py                    ⏱️ Anti-spam throttling
 │
-├── README.md 📘 Документация проекта
-├── requirements.txt 📋 Зависимости Python
+├── README.md                            📘 Project documentation
+├── requirements.txt                     📋 Python dependencies
 │
-├── scheduler/ ⏰ Планировщик задач
-│ └── reminders.py 🔔 Отправка напоминаний
+├── scheduler/                           ⏰ Task scheduler
+│   └── reminders.py                     🔔 Appointment reminders
 │
-├── secrets/ 🔐 Секреты и ключи
-│ └── gcal-service-account.json 📄 Ключ сервисного аккаунта Google
+├── secrets/                             🔐 Secrets & keys
+│   └── gcal-service-account.json        📄 Google service account key
 │
-├── services/ 🛠️ Сервисы и бизнес-логика
-│ ├── appointments.py 📅 Управление записями
-│ └── calendar.py 📆 Интеграция с Google Calendar
+├── services/                            🛠️ Business logic services
+│   ├── appointments.py                  📅 Appointment management
+│   └── calendar.py                      📆 Google Calendar integration
 │
-├── structure.txt 📝 Чистая структура проекта
-├── Task 📄 Дополнительные заметки/таски
+├── structure.txt                        📝 Clean project structure
+├── Task                                 📄 Notes / tasks
 │
-└── utils/ 🔧 Вспомогательные функции
-├── helpers.py 🛠️ Парсинг дат, таймзона и т.д.
-└── logging.py 🪵 Настройка логирования
+└── utils/                               🔧 Utility functions
+    ├── helpers.py                       🛠️ Date parsing, timezone, etc.
+    └── logging.py                       🪵 Logging configuration
+
 
 
 ```
 
-🔮 В планах
+## 🔗 Links
 
-⏱ Проверка рабочего времени мастера (is_in_working_hours)
+- [GitHub repository:](https://github.com/Mr-Shams86/beauty_bot)
 
-🔔 Напоминания клиентам за 24ч и 2ч до записи
-
-🌍 Мультиязычность (RU / UZ / EN)
+- [Telegram booking bot:](@beauty2525_bot)
 
 
-## 🔗 Ссылки
+## 📸 Beauty Bot Demo
 
-- [GitHub репозиторий](https://github.com/Mr-Shams86/beauty_bot)
+## 1. Bot start  
+![start](docs/img/start.jpg)
 
-- [Телеграм-бот для онлайн-записи клиентов](@beauty2525_bot)
+## 2. Main menu 
+![Menu](docs/img/menu.jpg)
 
-## 📸 Демонстрация работы Beauty Bot
+## 3. Service booking 
+![Booking](docs/img/booking.jpg)
 
-### 1. Запуск бота  
-![Старт](docs/img/start.jpg)
+## 4. Date & confirmation 
+![Date](docs/img/date.jpg)
 
-### 2. Главное меню  
-![Меню](docs/img/menu.jpg)
+![onfirmation](docs/img/confirmation.jpg)
 
-### 3. Запись на услугу  
-![Запись](docs/img/booking.jpg)
+## 5. My appointments  
+![My appointments](docs/img/my_bookings.jpg)
 
-### 4. Выбор даты и подтверждение  
-![Дата](docs/img/date.jpg)
+## 6. Admin panel  
+![Admin](docs/img/admin.jpg)
 
-![Подтверждение](docs/img/confirmation.jpg)
-
-### 5. Мои записи  
-![Мои записи](docs/img/my_bookings.jpg)
-
-### 6. Админ-панель  
-![Админка](docs/img/admin.jpg)
-
-### 7. Интеграция с Google Calendar
-Бронирование автоматически создаётся в календаре мастера:  
+### 7. Google Calendar integration
+Appointments are automatically created in the expert’s calendar:  
 ![Google Calendar](docs/img/calendar.png)
 
----
-
-### 8. Интеграция с Google Sheets
-Все записи дублируются в таблицу для удобного учёта:  
+## 8. Google Sheets integration
+All appointments are duplicated in a spreadsheet for record keeping:  
 ![Google Sheets](docs/img/sheets.png)
 
----
-
-## 🎥 Видео-демо
-Полное демо (3 мин) доступно в репозитории:  
-[Скачать и ▶️ Смотреть demo.mp4](docs/demo_video/demo.mp4)
+## 🎥 Video Demo
+Full demo (3 minutes) is available in the repository:  
+[Download & ▶️ Watch demo.mp4](docs/demo_video/demo.mp4)
 
 
-## 📢 **Контакты**
+## 📢 **Contacts**
 
 - **Email**: sammertime763@gmail.com
 
 - **Telegram**: [Mr_Shams_1986](https://t.me/Mr_Shams_1986)
 
----
 
-## 📚 **Лицензия**
+## 📚 **License**
 
 - MIT License
